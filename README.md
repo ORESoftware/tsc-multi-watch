@@ -1,5 +1,12 @@
-## tsc-multiple-watch
+## tsc-multi-watch
 Spawns a watch process for each tsconfig.json file in your project.
+
+## Caveats / Pitfalls
+Make sure the tsconfig.json file in the root of your project ignores the directories that contain your
+other tsconfig.json files, otherwise you may get strange behavior, duplicate transpilation, etc.
+
+You may not have a tsconfig.json file in the root of your project - but this applies for any tsconfig.json file
+which might "shadow" another file.
 
 
 ### CLI
