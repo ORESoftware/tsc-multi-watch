@@ -26,5 +26,14 @@
   "bugs": {
     "url": "https://github.com/ORESoftware/tsc-multi-watch/issues"
   },
-  "homepage": "https://github.com/ORESoftware/tsc-multi-watch#readme"
+  "homepage": "https://github.com/ORESoftware/tsc-multi-watch#readme",
+  "dependencies": {
+    "async": "^2.4.1",
+    "residence": "0.0.203"
+  },
+  "devDependencies": {
+    "@types/async": "^2.0.40",
+    "@types/lodash": "^4.14.66",
+    "@types/node": "^7.0.31"
+  }
 }
