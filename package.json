@@ -1,0 +1,30 @@
+{
+  "name": "tsc-multi-watch",
+  "version": "0.0.1001",
+  "description": "Spawn a tsc --watch process for each tsconfig.json file in your project.",
+  "main": "index.js",
+  "scripts": {
+    "test": "suman"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ORESoftware/tsc-multi-watch.git"
+  },
+  "keywords": [
+    "typescript",
+    "ts",
+    "tsc",
+    "watch",
+    "watcher",
+    "transpile",
+    "transpilation",
+    "npm",
+    "node"
+  ],
+  "author": "Olegzandr VD",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ORESoftware/tsc-multi-watch/issues"
+  },
+  "homepage": "https://github.com/ORESoftware/tsc-multi-watch#readme"
+}
