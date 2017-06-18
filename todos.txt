@@ -1,0 +1,4 @@
+
+add a progress bar
+
+8 seconds timeout for each file
