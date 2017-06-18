@@ -3,6 +3,9 @@
   "version": "0.0.1001",
   "description": "Spawn a tsc --watch process for each tsconfig.json file in your project.",
   "main": "index.js",
+  "bin": {
+    "tscmultiwatch": "index.js"
+  },
   "scripts": {
     "test": "suman"
   },
