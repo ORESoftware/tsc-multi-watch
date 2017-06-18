@@ -1,22 +1,23 @@
-# tsc-multiple-watch
+## tsc-multiple-watch
 Spawns a watch process for each tsconfig.json file in your project.
 
 
-# CLI
+### CLI
 
 `$ npm install -g tsc-multi-watch`
+<br>
 `$ cd <project-root> && tscmultiwatch`
 
 
-# Programmtic API
+### Programmatic API
 
 ```javascript
-import tscmultiwatch from 'tsc-mult-watch';
+import tscmultiwatch from 'tsc-multi-watch';
 const {default:tscmultiwatch} = require('tsc-multi-watch'); 
 
 tscmultiwatch({options}, function(err){
   
 });
 
-
 ```
+
