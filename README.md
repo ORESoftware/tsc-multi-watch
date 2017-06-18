@@ -1,4 +1,4 @@
-## tsc-multi-watch
+# tsc-multi-watch
 Spawns a watch process for each tsconfig.json file in your project.
 
 ## Caveats / Pitfalls
@@ -9,12 +9,13 @@ You may not have a tsconfig.json file in the root of your project - but the abov
 which might "shadow" another file.
 
 
+## Installation
+
+### `$ npm install -g -D tsc-multi-watch`
+
 ### CLI
 
-`$ npm install -g tsc-multi-watch`
-<br>
 `$ cd <project-root> && tscmultiwatch`
-
 
 ### Programmatic API
 
