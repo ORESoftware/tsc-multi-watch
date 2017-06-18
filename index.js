@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 var residence = require("residence");
@@ -60,7 +59,7 @@ var searchDir = function (dir, cb) {
         }, cb);
     });
 };
-exports.default = function () {
+function default_1(opts, cb) {
     searchDir(root, function (err) {
         if (err) {
             throw err;
@@ -86,12 +85,15 @@ exports.default = function () {
                 }
             };
             var to = setTimeout(first, 8000);
+            var dirname = path.dirname(p);
+            console.log('dirname used => ', dirname);
             var k = cp.spawn('bash', [], {
                 detached: false,
-                cwd: path.dirname(p)
+                cwd: dirname
             });
             var cmd = 'tsc -w';
             k.stdin.write("\n" + cmd + "\n");
+            k.stdin.end();
             k.once('error', first);
             k.stderr.setEncoding('utf8');
             k.stdout.setEncoding('utf8');
@@ -112,6 +114,9 @@ exports.default = function () {
             }
             console.log(' => tsc-multi-watch is running watchers against the following paths:');
             console.log(util.inspect(tsconfigPaths));
+            cb && cb();
         });
     });
-};
+}
+exports.default = default_1;
+;

@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 'use strict';
 
 import * as residence from 'residence';
@@ -95,7 +94,7 @@ let searchDir = function (dir: string, cb: Function) {
 
 };
 
-exports.default = function(){
+export  default  function (opts: Object | null, cb?: Function) {
 
   searchDir(root, function (err: Error) {
 
@@ -131,13 +130,17 @@ exports.default = function(){
 
       let to = setTimeout(first, 8000);
 
+      let dirname =  path.dirname(p);
+      console.log('dirname used => ', dirname);
+
       let k = cp.spawn('bash', [], {
         detached: false,
-        cwd: path.dirname(p)
+        cwd: dirname
       });
 
       let cmd = 'tsc -w';
       k.stdin.write(`\n${cmd}\n`);
+      k.stdin.end();
       k.once('error', first);
       k.stderr.setEncoding('utf8');
       k.stdout.setEncoding('utf8');
@@ -166,6 +169,8 @@ exports.default = function(){
 
       console.log(' => tsc-multi-watch is running watchers against the following paths:');
       console.log(util.inspect(tsconfigPaths));
+
+      cb && cb();
 
     });
 

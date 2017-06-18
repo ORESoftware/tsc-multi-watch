@@ -1,6 +1,7 @@
+#!/usr/bin/env node
+'use strict';
 
-
-const tscmultiwatch = require('.');
+const {default:tscmultiwatch} = require('.');
 
 tscmultiwatch({
 
