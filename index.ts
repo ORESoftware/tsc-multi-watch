@@ -129,7 +129,6 @@ export  default  function (opts: Object | null, cb?: Function) {
       };
 
       let to = setTimeout(first, 8000);
-
       let dirname =  path.dirname(p);
       console.log('dirname used => ', dirname);
 
