@@ -4,7 +4,6 @@ import * as residence from 'residence';
 import {Stats} from "fs";
 import * as util from "util";
 import * as cp from 'child_process';
-const root = residence.findProjectRoot(process.cwd());
 const fs = require('fs');
 const async = require('async');
 const path = require('path');
@@ -12,6 +11,8 @@ import * as chokidar from 'chokidar';
 import {ChildProcess} from "child_process";
 import * as chalk from 'chalk';
 import Timer = NodeJS.Timer;
+
+const root = residence.findProjectRoot(process.cwd());
 
 if (!root) {
   throw new Error('=> Could not find an NPM project root given your current working directory.');

@@ -2,12 +2,12 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var residence = require("residence");
 var cp = require("child_process");
-var root = residence.findProjectRoot(process.cwd());
 var fs = require('fs');
 var async = require('async');
 var path = require('path');
 var chokidar = require("chokidar");
 var chalk = require("chalk");
+var root = residence.findProjectRoot(process.cwd());
 if (!root) {
     throw new Error('=> Could not find an NPM project root given your current working directory.');
 }
