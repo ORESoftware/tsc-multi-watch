@@ -37,8 +37,7 @@ try {
 }
 catch (err) {
 }
-var searchDir = function (dir, cb) {
-    var tsconfigPaths = [];
+var searchDir = function (dir, tsConfigPaths, cb) {
     if (isMatch(dir)) {
         logWarning('dir was ignored => ', dir);
         return process.nextTick(cb);
@@ -58,17 +57,20 @@ var searchDir = function (dir, cb) {
                     return cb(err);
                 }
                 if (stats.isDirectory()) {
-                    return searchDir(fullPath, cb);
+                    return searchDir(fullPath, tsConfigPaths, cb);
                 }
                 if (stats.isFile()) {
-                    if (String(item).match(/^tsconfig\.json$/)) {
-                        tsconfigPaths.push(fullPath);
+                    if (String(item).match(/^tsconfig.*\.json$/)) {
+                        tsConfigPaths.push(fullPath);
                     }
+                }
+                else {
+                    logWarning('the following item is neither a file nor directory (a symlink?) => ', fullPath);
                 }
                 cb(null);
             });
         }, function (err) {
-            cb(err, tsconfigPaths);
+            cb(err, tsConfigPaths);
         });
     });
 };
@@ -162,7 +164,8 @@ function default_1(opts, cb) {
             }
         });
     });
-    searchDir(root, function (err, tsconfigPaths) {
+    var $tsconfigPaths = [];
+    searchDir(root, $tsconfigPaths, function (err, tsconfigPaths) {
         if (err) {
             throw err;
         }

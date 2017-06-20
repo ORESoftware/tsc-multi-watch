@@ -54,9 +54,7 @@ catch (err) {
 
 }
 
-let searchDir = function (dir: string, cb: Function) {
-
-  const tsconfigPaths: Array<string> = [];
+let searchDir = function (dir: string, tsConfigPaths: Array<string>, cb: Function) {
 
   if (isMatch(dir)) {
     // we ignore paths that match any of the regexes in the list
@@ -87,13 +85,16 @@ let searchDir = function (dir: string, cb: Function) {
         }
 
         if (stats.isDirectory()) {
-          return searchDir(fullPath, cb);
+          return searchDir(fullPath, tsConfigPaths, cb);
         }
 
         if (stats.isFile()) {
-          if (String(item).match(/^tsconfig\.json$/)) {
-            tsconfigPaths.push(fullPath);
+          if (String(item).match(/^tsconfig.*\.json$/)) {
+            tsConfigPaths.push(fullPath);
           }
+        }
+        else {
+          logWarning('the following item is neither a file nor directory (a symlink?) => ', fullPath);
         }
 
         cb(null);
@@ -102,7 +103,7 @@ let searchDir = function (dir: string, cb: Function) {
 
     }, function (err: Error) {
 
-      cb(err, tsconfigPaths)
+      cb(err, tsConfigPaths)
 
     });
 
@@ -244,8 +245,9 @@ export default function (opts: Object | null, cb?: Function) {
     });
   });
 
+  const $tsconfigPaths: Array<string> = [];
 
-  searchDir(root, function (err: Error, tsconfigPaths: Array<string>) {
+  searchDir(root, $tsconfigPaths, function (err: Error, tsconfigPaths: Array<string>) {
 
     if (err) {
       throw err;

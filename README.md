@@ -29,3 +29,22 @@ tscmultiwatch({options}, function(err){
 
 ```
 
+## You can use tsconfig.json files that match this pattern
+
+```
+tsconfig-test.json
+tsconfigFOO.json
+tsconfig.bar.json
+//etc
+```
+
+### Here is the regex currently beign used
+
+```javascript
+  if (String(item).match(/^tsconfig.*\.json$/)) {
+       tsConfigPaths.push(fullPath);
+  }
+
+```
+   
+
