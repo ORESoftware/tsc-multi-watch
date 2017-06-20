@@ -94,6 +94,11 @@ var startCP = function (cps) {
             detached: false,
             cwd: dirname
         });
+        k.once('exit', function () {
+            clearTimeout(k.tscMultiWatchTO);
+            console.log('child process exitted.');
+            k.fnCalledWhenExitting && k.fnCalledWhenExitting();
+        });
         k.tsConfigPath = p;
         cps.push(k);
         var cmd = 'tsc -w';
@@ -136,18 +141,20 @@ function default_1(opts, cb) {
             }
             if (String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/)) {
                 log('A typescript file was added at path =>', chalk.blue(p));
-                var cpToKill = void 0, matchAmount = 0;
+                var cpToKill_1, matchAmount = 0;
                 for (var i = 0; i < cps.length; i++) {
                     var cp_1 = cps[i], tsConfigPath = cp_1.tsConfigPath, dir = path.dirname(tsConfigPath), ln = dir.length;
                     if (String(p).match(dir) && ln > matchAmount) {
-                        cpToKill = cp_1;
-                        matchAmount = dir.length;
+                        cpToKill_1 = cp_1;
+                        matchAmount = ln;
                     }
                 }
-                if (cpToKill) {
+                if (cpToKill_1) {
+                    var index = cps.indexOf(cpToKill_1);
+                    cps.splice(index, 1);
                     logGood('We will re-start the appropriate watch process given this file change...');
-                    var rewatchPath_1 = cpToKill.tsConfigPath;
-                    cpToKill.kill('SIGINT');
+                    var rewatchPath_1 = cpToKill_1.tsConfigPath;
+                    console.log('child process has exitted.');
                     startCP(cps)(rewatchPath_1, function (err) {
                         if (err) {
                             logError(err.stack || err);
@@ -156,6 +163,13 @@ function default_1(opts, cb) {
                             logVeryGood('A new watcher process was started at path =>', rewatchPath_1);
                         }
                     });
+                    cpToKill_1.once('exit', function () {
+                        console.log('exit 2');
+                    });
+                    cpToKill_1.kill('SIGINT');
+                    cpToKill_1.tscMultiWatchTO = setTimeout(function () {
+                        cpToKill_1.kill('SIGKILL');
+                    }, 5000);
                 }
                 else {
                     logWarning('it appears that no current watch process was watching the directory that the file was added to.');

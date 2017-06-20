@@ -11,6 +11,7 @@ const path = require('path');
 import * as chokidar from 'chokidar';
 import {ChildProcess} from "child_process";
 import * as chalk from 'chalk';
+import Timer = NodeJS.Timer;
 
 if (!root) {
   throw new Error('=> Could not find an NPM project root given your current working directory.');
@@ -35,7 +36,9 @@ let isMatch = function (pth: string): boolean {
 };
 
 interface IMultiWatchChildProcess extends ChildProcess {
-  tsConfigPath: string
+  tsConfigPath: string;
+  fnCalledWhenExitting: Function,
+  tscMultiWatchTO?: Timer
 }
 
 const logsDir = path.resolve(root + '/.tscmultiwatch');
@@ -138,6 +141,12 @@ let startCP = function (cps: Array<IMultiWatchChildProcess>) {
       cwd: dirname
     });
 
+    k.once('exit', function () {
+      clearTimeout(k.tscMultiWatchTO);
+      console.log('child process exitted.');
+      k.fnCalledWhenExitting && k.fnCalledWhenExitting();
+    });
+
     k.tsConfigPath = p;
     cps.push(k);
 
@@ -200,7 +209,7 @@ export default function (opts: Object | null, cb?: Function) {
 
         log('A typescript file was added at path =>', chalk.blue(p));
 
-        let cpToKill, matchAmount = 0;
+        let cpToKill: IMultiWatchChildProcess, matchAmount = 0;
 
         for (let i = 0; i < cps.length; i++) {
 
@@ -210,19 +219,21 @@ export default function (opts: Object | null, cb?: Function) {
 
           if (String(p).match(dir) && ln > matchAmount) {
             cpToKill = cp;
-            matchAmount = dir.length;
+            matchAmount = ln;
           }
         }
 
         if (cpToKill) {
 
+          // remove cp from array
+          let index = cps.indexOf(cpToKill);
+          cps.splice(index, 1);
+
           logGood('We will re-start the appropriate watch process given this file change...');
 
           let rewatchPath = cpToKill.tsConfigPath;
 
-          cpToKill.kill('SIGINT');
-
-          // cpToKill.once('exit', function(){
+          console.log('child process has exitted.');
           startCP(cps)(rewatchPath, function (err: Error) {
 
             if (err) {
@@ -232,7 +243,15 @@ export default function (opts: Object | null, cb?: Function) {
               logVeryGood('A new watcher process was started at path =>', rewatchPath);
             }
           });
-          // });
+
+          cpToKill.once('exit', function () {
+            console.log('exit 2');
+          });
+
+          cpToKill.kill('SIGINT');
+          cpToKill.tscMultiWatchTO = setTimeout(() => {
+            cpToKill.kill('SIGKILL');
+          }, 5000);
 
         }
         else {
