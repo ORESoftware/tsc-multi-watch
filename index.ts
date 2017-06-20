@@ -38,7 +38,7 @@ interface IMultiWatchChildProcess extends ChildProcess {
   tsConfigPath: string
 }
 
-const logsDir = path.resolve(root + '/.tscmwlogs');
+const logsDir = path.resolve(root + '/.tscmultiwatch');
 
 try {
   fs.mkdirSync(logsDir);
@@ -69,7 +69,7 @@ let searchDir = function (dir: string, cb: Function) {
 
       if (isMatch(dir)) {
         // we ignore paths that match any of the regexes in the list
-        console.log('dir was ignored => ', dir);
+        logWarning('dir was ignored => ', dir);
         return process.nextTick(cb);
       }
 
@@ -107,7 +107,7 @@ let startCP = function (cps: Array<IMultiWatchChildProcess>) {
 
   return function (p: string, cb: Function) {
 
-    let logFile = path.resolve(root + '/.tscmwlogs/' + String(p)
+    let logFile = path.resolve(root + '/.tscmultiwatch/' + String(p)
         .slice(root.length).replace(/\//g, '#') + '.log');
 
     let callable = true;
@@ -235,7 +235,7 @@ export  default  function (opts: Object | null, cb?: Function) {
     }
 
     if (tsconfigPaths.length < 1) {
-      console.error('No tsconfig.json files could be found in your project.');
+      logError('No tsconfig.json files could be found in your project.');
       return process.exit(1);
     }
     else {
