@@ -47,6 +47,13 @@ catch (err) {
 
 }
 
+try {
+  fs.mkdirSync(path.resolve(logsDir + '/logs'));
+}
+catch (err) {
+
+}
+
 let searchDir = function (dir: string, cb: Function) {
 
   const tsconfigPaths: Array<string> = [];
@@ -122,7 +129,7 @@ let startCP = function (cps: Array<IMultiWatchChildProcess>) {
       }
     };
 
-    let to = setTimeout(first, 8000);
+    let to = setTimeout(first, 6000);
     let dirname = path.dirname(p);
 
     let k = <IMultiWatchChildProcess> cp.spawn('bash', [], {
@@ -158,13 +165,18 @@ let startCP = function (cps: Array<IMultiWatchChildProcess>) {
   }
 };
 
-export  default  function (opts: Object | null, cb?: Function) {
+export default function (opts: Object | null, cb?: Function) {
 
   const cps: Array<IMultiWatchChildProcess> = [];
 
   const watcher = chokidar.watch(root, {
     ignoreInitial: true,
     ignored: /(\/node_modules\/|\/.git\/)/
+  });
+
+  process.once('exit', function () {
+    // cleanup carefully
+    watcher.close();
   });
 
   let ready = false;
@@ -207,6 +219,9 @@ export  default  function (opts: Object | null, cb?: Function) {
 
           let rewatchPath = cpToKill.tsConfigPath;
 
+          cpToKill.kill('SIGINT');
+
+          // cpToKill.once('exit', function(){
           startCP(cps)(rewatchPath, function (err: Error) {
 
             if (err) {
@@ -216,6 +231,12 @@ export  default  function (opts: Object | null, cb?: Function) {
               logVeryGood('A new watcher process was started at path =>', rewatchPath);
             }
           });
+          // });
+
+        }
+        else {
+          logWarning('it appears that no current watch process was watching the directory that the file was added to.');
+          logWarning('no new watch process will be spawned nor will any watch process be re-started.');
         }
 
       }
@@ -223,10 +244,6 @@ export  default  function (opts: Object | null, cb?: Function) {
     });
   });
 
-  process.once('exit', function () {
-    // cleanup carefully
-    watcher.close();
-  });
 
   searchDir(root, function (err: Error, tsconfigPaths: Array<string>) {
 
@@ -250,8 +267,10 @@ export  default  function (opts: Object | null, cb?: Function) {
 
       ready = true;
 
-      logGood('tsc-multi-watch is running watchers against the following paths:');
-      log(util.inspect(tsconfigPaths));
+      logVeryGood('tsc-multi-watch is running watchers against the following tsconfig.json files:');
+      tsconfigPaths.forEach(function (p, index) {
+        logGood('[' + (index + 1) + ']', p);
+      });
 
       cb && cb();
 
