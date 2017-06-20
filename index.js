@@ -7,9 +7,16 @@ var root = residence.findProjectRoot(process.cwd());
 var fs = require('fs');
 var async = require('async');
 var path = require('path');
+var chokidar = require("chokidar");
+var chalk = require("chalk");
 if (!root) {
     throw new Error('=> Could not find an NPM project root given your current working directory.');
 }
+var log = console.log.bind(console, ' => [tsc-multi-watch] =>');
+var logGood = console.log.bind(console, chalk.cyan(' => [tsc-multi-watch] =>'));
+var logVeryGood = console.log.bind(console, chalk.green(' => [tsc-multi-watch] =>'));
+var logWarning = console.log.bind(console, chalk.yellow.bold(' => [tsc-multi-watch] =>'));
+var logError = console.log.bind(console, chalk.red(' => [tsc-multi-watch] =>'));
 var ignored = [
     /\/node_modules/,
     /\/.git/,
@@ -26,10 +33,10 @@ try {
 }
 catch (err) {
 }
-var tsconfigPaths = [];
 var searchDir = function (dir, cb) {
+    var tsconfigPaths = [];
     if (isMatch(dir)) {
-        console.log('dir was ignored => ', dir);
+        logWarning('dir was ignored => ', dir);
         return process.nextTick(cb);
     }
     fs.readdir(dir, function (err, items) {
@@ -56,11 +63,97 @@ var searchDir = function (dir, cb) {
                 }
                 cb(null);
             });
-        }, cb);
+        }, function (err) {
+            cb(err, tsconfigPaths);
+        });
     });
 };
+var startCP = function (cps) {
+    return function (p, cb) {
+        var logFile = path.resolve(root + '/.tscmwlogs/' + String(p)
+            .slice(root.length).replace(/\//g, '#') + '.log');
+        var callable = true;
+        var first = function () {
+            if (callable) {
+                clearTimeout(to);
+                k.stderr.removeListener('data', onStdio);
+                k.stdout.removeListener('data', onStdio);
+                callable = false;
+                cb.apply(this, arguments);
+            }
+        };
+        var to = setTimeout(first, 8000);
+        var dirname = path.dirname(p);
+        var k = cp.spawn('bash', [], {
+            detached: false,
+            cwd: dirname
+        });
+        k.tsConfigPath = p;
+        cps.push(k);
+        var cmd = 'tsc -w';
+        k.stdin.write("\n" + cmd + "\n");
+        k.stdin.end();
+        k.once('error', first);
+        k.stderr.setEncoding('utf8');
+        k.stdout.setEncoding('utf8');
+        var count = 0;
+        var onStdio = function () {
+            if (count++ > 15) {
+                first();
+            }
+        };
+        var strm = fs.createWriteStream(logFile);
+        k.stdout.pipe(strm);
+        k.stderr.pipe(strm);
+        k.stdout.on('data', onStdio);
+        k.stderr.on('data', onStdio);
+    };
+};
 function default_1(opts, cb) {
-    searchDir(root, function (err) {
+    var cps = [];
+    var watcher = chokidar.watch(root, {
+        ignoreInitial: true,
+        ignored: /(\/node_modules\/|\/.git\/)/
+    });
+    var ready = false;
+    logGood('initialized chokidar watcher.');
+    watcher.once('ready', function (v) {
+        logVeryGood('chokidar watcher is now ready.');
+        watcher.on('add', function (p) {
+            if (!ready) {
+                logWarning("The following file was added to your project => " + p);
+                logWarning('But we are not ready to handle a link/add event just yet.');
+                return;
+            }
+            if (String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/)) {
+                log('A typescript file was added at path =>', chalk.blue(p));
+                var cpToKill = void 0, matchAmount = 0;
+                for (var i = 0; i < cps.length; i++) {
+                    var cp_1 = cps[i], tsConfigPath = cp_1.tsConfigPath, dir = path.dirname(tsConfigPath), ln = dir.length;
+                    if (String(p).match(dir) && ln > matchAmount) {
+                        cpToKill = cp_1;
+                        matchAmount = dir.length;
+                    }
+                }
+                if (cpToKill) {
+                    logGood('We will re-start the appropriate watch process given this file change...');
+                    var rewatchPath_1 = cpToKill.tsConfigPath;
+                    startCP(cps)(rewatchPath_1, function (err) {
+                        if (err) {
+                            logError(err.stack || err);
+                        }
+                        else {
+                            logVeryGood('A new watcher process was started at path =>', rewatchPath_1);
+                        }
+                    });
+                }
+            }
+        });
+    });
+    process.once('exit', function () {
+        watcher.close();
+    });
+    searchDir(root, function (err, tsconfigPaths) {
         if (err) {
             throw err;
         }
@@ -69,51 +162,15 @@ function default_1(opts, cb) {
             return process.exit(1);
         }
         else {
-            console.log(" => tsc-multi-watch will start " + tsconfigPaths.length + " watching processes.");
+            logGood("tsc-multi-watch will attempt to start " + tsconfigPaths.length + " watching processes.");
         }
-        async.eachLimit(tsconfigPaths, 3, function (p, cb) {
-            var logFile = path.resolve(root + '/.tscmwlogs/' + String(p)
-                .slice(root.length).replace(/\//g, '#') + '.log');
-            var callable = true;
-            var first = function () {
-                if (callable) {
-                    clearTimeout(to);
-                    k.stderr.removeListener('data', onStdio);
-                    k.stdout.removeListener('data', onStdio);
-                    callable = false;
-                    cb.apply(this, arguments);
-                }
-            };
-            var to = setTimeout(first, 8000);
-            var dirname = path.dirname(p);
-            console.log('dirname used => ', dirname);
-            var k = cp.spawn('bash', [], {
-                detached: false,
-                cwd: dirname
-            });
-            var cmd = 'tsc -w';
-            k.stdin.write("\n" + cmd + "\n");
-            k.stdin.end();
-            k.once('error', first);
-            k.stderr.setEncoding('utf8');
-            k.stdout.setEncoding('utf8');
-            var count = 0;
-            var onStdio = function () {
-                if (count++ > 15) {
-                    first();
-                }
-            };
-            var strm = fs.createWriteStream(logFile);
-            k.stdout.pipe(strm);
-            k.stderr.pipe(strm);
-            k.stdout.on('data', onStdio);
-            k.stderr.on('data', onStdio);
-        }, function (err) {
+        async.eachLimit(tsconfigPaths, 3, startCP(cps), function (err) {
             if (err) {
                 throw err;
             }
-            console.log(' => tsc-multi-watch is running watchers against the following paths:');
-            console.log(util.inspect(tsconfigPaths));
+            ready = true;
+            logGood('tsc-multi-watch is running watchers against the following paths:');
+            log(util.inspect(tsconfigPaths));
             cb && cb();
         });
     });

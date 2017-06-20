@@ -8,10 +8,19 @@ const root = residence.findProjectRoot(process.cwd());
 const fs = require('fs');
 const async = require('async');
 const path = require('path');
+import * as chokidar from 'chokidar';
+import {ChildProcess} from "child_process";
+import * as chalk from 'chalk';
 
 if (!root) {
   throw new Error('=> Could not find an NPM project root given your current working directory.');
 }
+
+const log = console.log.bind(console, ' => [tsc-multi-watch] =>');
+const logGood = console.log.bind(console, chalk.cyan(' => [tsc-multi-watch] =>'));
+const logVeryGood = console.log.bind(console, chalk.green(' => [tsc-multi-watch] =>'));
+const logWarning = console.log.bind(console, chalk.yellow.bold(' => [tsc-multi-watch] =>'));
+const logError = console.log.bind(console, chalk.red(' => [tsc-multi-watch] =>'));
 
 const ignored: Array<RegExp> = [
   /\/node_modules/,
@@ -25,6 +34,9 @@ let isMatch = function (pth: string): boolean {
   });
 };
 
+interface IMultiWatchChildProcess extends ChildProcess {
+  tsConfigPath: string
+}
 
 const logsDir = path.resolve(root + '/.tscmwlogs');
 
@@ -33,18 +45,15 @@ try {
 }
 catch (err) {
 
-
 }
-
-
-const tsconfigPaths: Array<string> = [];
-
 
 let searchDir = function (dir: string, cb: Function) {
 
+  const tsconfigPaths: Array<string> = [];
+
   if (isMatch(dir)) {
     // we ignore paths that match any of the regexes in the list
-    console.log('dir was ignored => ', dir);
+    logWarning('dir was ignored => ', dir);
     return process.nextTick(cb);
   }
 
@@ -82,21 +91,144 @@ let searchDir = function (dir: string, cb: Function) {
 
         cb(null);
 
-
       });
 
+    }, function (err: Error) {
 
-    }, cb);
+      cb(err, tsconfigPaths)
 
+    });
 
   });
 
+};
 
+let startCP = function (cps: Array<IMultiWatchChildProcess>) {
+
+  return function (p: string, cb: Function) {
+
+    let logFile = path.resolve(root + '/.tscmwlogs/' + String(p)
+        .slice(root.length).replace(/\//g, '#') + '.log');
+
+    let callable = true;
+
+    let first = function () {
+      if (callable) {
+        clearTimeout(to);
+        k.stderr.removeListener('data', onStdio);
+        k.stdout.removeListener('data', onStdio);
+        callable = false;
+        cb.apply(this, arguments);
+      }
+    };
+
+    let to = setTimeout(first, 8000);
+    let dirname = path.dirname(p);
+
+    let k = <IMultiWatchChildProcess> cp.spawn('bash', [], {
+      detached: false,
+      cwd: dirname
+    });
+
+    k.tsConfigPath = p;
+    cps.push(k);
+
+    let cmd = 'tsc -w';
+    k.stdin.write(`\n${cmd}\n`);
+    k.stdin.end();
+    k.once('error', first);
+    k.stderr.setEncoding('utf8');
+    k.stdout.setEncoding('utf8');
+
+    let count = 0;
+
+    let onStdio = function () {
+      if (count++ > 15) {
+        first();
+      }
+    };
+
+    let strm = fs.createWriteStream(logFile);
+
+    k.stdout.pipe(strm);
+    k.stderr.pipe(strm);
+    k.stdout.on('data', onStdio);
+    k.stderr.on('data', onStdio);
+
+  }
 };
 
 export  default  function (opts: Object | null, cb?: Function) {
 
-  searchDir(root, function (err: Error) {
+  const cps: Array<IMultiWatchChildProcess> = [];
+
+  const watcher = chokidar.watch(root, {
+    ignoreInitial: true,
+    ignored: /(\/node_modules\/|\/.git\/)/
+  });
+
+  let ready = false;
+
+  logGood('initialized chokidar watcher.');
+
+  watcher.once('ready', function (v: any) {
+
+    logVeryGood('chokidar watcher is now ready.');
+
+    watcher.on('add', function (p: string) {
+
+      if (!ready) {
+        logWarning(`The following file was added to your project => ${p}`);
+        logWarning('But we are not ready to handle a link/add event just yet.');
+        return;
+      }
+
+      if (String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/)) {
+
+        log('A typescript file was added at path =>', chalk.blue(p));
+
+        let cpToKill, matchAmount = 0;
+
+        for (let i = 0; i < cps.length; i++) {
+
+          let cp = cps[i], tsConfigPath = cp.tsConfigPath,
+            dir = path.dirname(tsConfigPath),
+            ln = dir.length;
+
+          if (String(p).match(dir) && ln > matchAmount) {
+            cpToKill = cp;
+            matchAmount = dir.length;
+          }
+        }
+
+        if (cpToKill) {
+
+          logGood('We will re-start the appropriate watch process given this file change...');
+
+          let rewatchPath = cpToKill.tsConfigPath;
+
+          startCP(cps)(rewatchPath, function (err: Error) {
+
+            if (err) {
+              logError(err.stack || err);
+            }
+            else {
+              logVeryGood('A new watcher process was started at path =>', rewatchPath);
+            }
+          });
+        }
+
+      }
+
+    });
+  });
+
+  process.once('exit', function () {
+    // cleanup carefully
+    watcher.close();
+  });
+
+  searchDir(root, function (err: Error, tsconfigPaths: Array<string>) {
 
     if (err) {
       throw err;
@@ -107,72 +239,23 @@ export  default  function (opts: Object | null, cb?: Function) {
       return process.exit(1);
     }
     else {
-      console.log(` => tsc-multi-watch will start ${tsconfigPaths.length} watching processes.`);
+      logGood(`tsc-multi-watch will attempt to start ${tsconfigPaths.length} watching processes.`);
     }
 
-    async.eachLimit(tsconfigPaths, 3, function (p: string, cb: Function) {
-
-
-      let logFile = path.resolve(root + '/.tscmwlogs/' + String(p)
-        .slice(root.length).replace(/\//g, '#') + '.log');
-
-      let callable = true;
-
-      let first = function () {
-        if (callable) {
-          clearTimeout(to);
-          k.stderr.removeListener('data', onStdio);
-          k.stdout.removeListener('data', onStdio);
-          callable = false;
-          cb.apply(this, arguments);
-        }
-      };
-
-      let to = setTimeout(first, 8000);
-      let dirname =  path.dirname(p);
-      console.log('dirname used => ', dirname);
-
-      let k = cp.spawn('bash', [], {
-        detached: false,
-        cwd: dirname
-      });
-
-      let cmd = 'tsc -w';
-      k.stdin.write(`\n${cmd}\n`);
-      k.stdin.end();
-      k.once('error', first);
-      k.stderr.setEncoding('utf8');
-      k.stdout.setEncoding('utf8');
-
-
-      let count = 0;
-
-      let onStdio = function () {
-        if (count++ > 15) {
-          first();
-        }
-      };
-
-      let strm = fs.createWriteStream(logFile);
-
-      k.stdout.pipe(strm);
-      k.stderr.pipe(strm);
-      k.stdout.on('data', onStdio);
-      k.stderr.on('data', onStdio);
-
-    }, function (err: Error) {
+    async.eachLimit(tsconfigPaths, 3, startCP(cps), function (err: Error) {
 
       if (err) {
         throw err;
       }
 
-      console.log(' => tsc-multi-watch is running watchers against the following paths:');
-      console.log(util.inspect(tsconfigPaths));
+      ready = true;
+
+      logGood('tsc-multi-watch is running watchers against the following paths:');
+      log(util.inspect(tsconfigPaths));
 
       cb && cb();
 
     });
-
 
   });
 
