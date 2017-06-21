@@ -176,6 +176,10 @@ let startCP = function (cps: Array<IMultiWatchChildProcess>) {
   }
 };
 
+let matchesTSFile = function(p: string): boolean {
+  return String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/);
+};
+
 export default function (opts: Object | null, cb?: Function) {
 
   const cps: Array<IMultiWatchChildProcess> = [];
@@ -201,12 +205,14 @@ export default function (opts: Object | null, cb?: Function) {
     watcher.on('add', function (p: string) {
 
       if (!ready) {
-        logWarning(`The following file was added to your project => ${p}`);
-        logWarning('But we are not ready to handle a link/add event just yet.');
+        if(matchesTSFile(p)){
+          logWarning(`The following file was added to your project => ${p}`);
+          logWarning('But we are not ready to handle a link/add event just yet.');
+        }
         return;
       }
 
-      if (String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/)) {
+      if (matchesTSFile(p)) {
 
         log('A typescript file was added at path =>', chalk.blue(p));
 

@@ -120,6 +120,9 @@ var startCP = function (cps) {
         k.stderr.on('data', onStdio);
     };
 };
+var matchesTSFile = function (p) {
+    return String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/);
+};
 function default_1(opts, cb) {
     var cps = [];
     var watcher = chokidar.watch(root, {
@@ -135,11 +138,13 @@ function default_1(opts, cb) {
         logVeryGood('chokidar watcher is now ready.');
         watcher.on('add', function (p) {
             if (!ready) {
-                logWarning("The following file was added to your project => " + p);
-                logWarning('But we are not ready to handle a link/add event just yet.');
+                if (matchesTSFile(p)) {
+                    logWarning("The following file was added to your project => " + p);
+                    logWarning('But we are not ready to handle a link/add event just yet.');
+                }
                 return;
             }
-            if (String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/)) {
+            if (matchesTSFile(p)) {
                 log('A typescript file was added at path =>', chalk.blue(p));
                 var cpToKill_1, matchAmount = 0;
                 for (var i = 0; i < cps.length; i++) {
