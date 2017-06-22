@@ -81,6 +81,7 @@ var startCP = function (cps) {
         var callable = true;
         var first = function () {
             if (callable) {
+                logGood("tsc watch process now watching " + chalk.magenta(p));
                 clearTimeout(to);
                 k.stderr.removeListener('data', onStdio);
                 k.stdout.removeListener('data', onStdio);
