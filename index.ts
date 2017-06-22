@@ -32,7 +32,7 @@ const ignored: Array<RegExp> = [
 
 let isMatch = function (pth: string): boolean {
   return ignored.some(function (ign) {
-    return String(pth).match(ign);
+    return !!String(pth).match(ign);
   });
 };
 
@@ -249,10 +249,6 @@ export default function (opts: Object | null, cb?: Function) {
             else {
               logVeryGood('A new watcher process was started at path =>', rewatchPath);
             }
-          });
-
-          cpToKill.once('exit', function () {
-            console.log('exit 2');
           });
 
           cpToKill.kill('SIGINT');

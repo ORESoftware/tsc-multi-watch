@@ -23,7 +23,7 @@ var ignored = [
 ];
 var isMatch = function (pth) {
     return ignored.some(function (ign) {
-        return String(pth).match(ign);
+        return !!String(pth).match(ign);
     });
 };
 var logsDir = path.resolve(root + '/.tscmultiwatch');
@@ -167,9 +167,6 @@ function default_1(opts, cb) {
                         else {
                             logVeryGood('A new watcher process was started at path =>', rewatchPath_1);
                         }
-                    });
-                    cpToKill_1.once('exit', function () {
-                        console.log('exit 2');
                     });
                     cpToKill_1.kill('SIGINT');
                     cpToKill_1.tscMultiWatchTO = setTimeout(function () {
