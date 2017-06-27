@@ -1,6 +1,6 @@
 {
   "name": "tsc-multi-watch",
-  "version": "0.0.1008",
+  "version": "0.0.1009",
   "description": "Spawn a tsc --watch process for each individual tsconfig.json file in your project.",
   "main": "index.js",
   "types": "index.d.ts",
