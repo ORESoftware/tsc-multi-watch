@@ -7,14 +7,18 @@ coverage
 ### files
 .gitignore
 .npmignore
+package-lock.json
+yarn.lock
 
 ### matching
+*.DS_Store
 *.json
 *.txt
 *.sh
 *.ts
 *.md
 *.log
+*.yml
 
 ### negation
 !*.d.ts
