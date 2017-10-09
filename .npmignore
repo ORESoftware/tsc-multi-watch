@@ -1,5 +1,4 @@
 ### folders
-test
 node_modules
 .idea
 coverage
@@ -7,7 +6,8 @@ coverage
 ### files
 .gitignore
 .npmignore
-package-lock.json
+.editorconfig
+.gitattributes
 yarn.lock
 
 ### matching
