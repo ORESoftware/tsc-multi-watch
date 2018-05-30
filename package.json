@@ -1,12 +1,12 @@
 {
   "name": "tsc-multi-watch",
-  "version": "0.0.1010",
+  "version": "0.0.1011",
   "description": "Spawn a tsc --watch process for each individual tsconfig.json file in your project.",
-  "main": "index.js",
-  "types": "index.d.ts",
-  "typings": "index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "typings": "dist/index.d.ts",
   "bin": {
-    "tscmultiwatch": "cli.js"
+    "tscmultiwatch": "dist/cli.js"
   },
   "scripts": {
     "test": "suman"
@@ -27,7 +27,7 @@
     "node"
   ],
   "author": "Olegzandr VD",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/ORESoftware/tsc-multi-watch/issues"
   },
