@@ -1,5 +1,4 @@
 ### folders
-test
 node_modules
 .idea
 coverage
@@ -7,14 +6,19 @@ coverage
 ### files
 .gitignore
 .npmignore
+.editorconfig
+.gitattributes
+yarn.lock
 
 ### matching
+*.DS_Store
 *.json
 *.txt
 *.sh
 *.ts
 *.md
 *.log
+*.yml
 
 ### negation
 !*.d.ts
