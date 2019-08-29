@@ -18,8 +18,6 @@ import CliOptions from "./cli-options";
 
 export type EVCb<T, E = any> = (err: E, val?: T) => void;
 
-// here is a diff  pppojj
-
 const ignored: Array<RegExp> = [
   /\/node_modules/,
   /\/.git/,
