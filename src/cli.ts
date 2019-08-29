@@ -2,6 +2,7 @@
 
 import runTMW from './main';
 import parser from './cli-parser';
+
 const v = parser.parse(process.argv);
 
 if (v.opts.help || Object.keys(v.opts).length < 1) {
@@ -11,5 +12,14 @@ if (v.opts.help || Object.keys(v.opts).length < 1) {
 
 
 runTMW(v.opts, (err, results) => {
-  console.log({err,results});
+  
+  if (err) {
+    console.error(err);
+    process.exit(1);
+  }
+  
+  console.log('Watching the following configs:');
+  console.log({results});
+  console.log();
+  
 });

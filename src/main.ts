@@ -5,6 +5,7 @@ import {Stats} from "fs";
 import * as util from "util";
 import * as cp from 'child_process';
 import log from './logging';
+
 const fs = require('fs');
 const async = require('async');
 const path = require('path');
@@ -17,6 +18,7 @@ import CliOptions from "./cli-options";
 
 export type EVCb<T, E = any> = (err: E, val?: T) => void;
 
+// here is a diff  pppojj
 
 const ignored: Array<RegExp> = [
   /\/node_modules/,
@@ -37,8 +39,7 @@ interface IMultiWatchChildProcess extends ChildProcess {
 }
 
 
-
-const searchDir = function (dir: string, tsConfigPaths: Array<string>, cb: Function) {
+const searchDir =  (dir: string, tsConfigPaths: Array<string>, cb: EVCb<Array<string>>) =>{
   
   if (isMatch(dir)) {
     // we ignore paths that match any of the regexes in the list
@@ -46,13 +47,13 @@ const searchDir = function (dir: string, tsConfigPaths: Array<string>, cb: Funct
     return process.nextTick(cb);
   }
   
-  fs.readdir(dir, function (err: Error, items: Array<string>) {
+  fs.readdir(dir,  (err: Error, items: Array<string>) => {
     
     if (err) {
       return cb(err);
     }
     
-    async.eachLimit(items, 6, function (item: string, cb: Function) {
+    async.eachLimit(items, 6,  (item: string, cb: EVCb<any>) => {
       
       const fullPath = path.resolve(dir, item);
       
@@ -65,7 +66,8 @@ const searchDir = function (dir: string, tsConfigPaths: Array<string>, cb: Funct
       fs.stat(fullPath, function (err: Error, stats: Stats) {
         
         if (err) {
-          return cb(err);
+          console.error(err);
+          return cb(null);
         }
         
         if (stats.isDirectory()) {
@@ -95,13 +97,13 @@ const searchDir = function (dir: string, tsConfigPaths: Array<string>, cb: Funct
 
 let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
   
-  return function (p: string, cb: Function) {
+  return  (p: string, cb: EVCb<any>) => {
     
     const logFile = path.resolve(root + '/.tscmultiwatch/' + String(p)
       .slice(root.length).replace(/\//g, '#') + '.log');
     
     let callable = true;
-  
+    
     const first = function () {
       if (callable) {
         log.good(`tsc watch process now watching ${chalk.magenta(p)}`);
@@ -109,16 +111,15 @@ let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
         k.stderr.removeListener('data', onStdio);
         k.stdout.removeListener('data', onStdio);
         callable = false;
-        cb.apply(this, arguments);
+        cb.apply(null, arguments);
       }
     };
-  
-    const to = setTimeout(first, 6000);
+    
+    const to = setTimeout(first, 4000);
     const dirname = path.dirname(p);
-  
+    
     const k = <IMultiWatchChildProcess>cp.spawn('bash', [], {
-      detached: false,
-      cwd: dirname
+      detached: false
     });
     
     k.once('exit', function () {
@@ -129,21 +130,21 @@ let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
     
     k.tsConfigPath = p;
     cps.push(k);
-  
-    const cmd = 'tsc -w';
+    
+    const cmd = `cd '${dirname}' && tsc -w`;
     k.stdin.end(`${cmd}`);
     k.once('error', first);
     k.stderr.setEncoding('utf8');
     k.stdout.setEncoding('utf8');
     
     let count = 0;
-  
+    
     const onStdio = function () {
       if (count++ > 15) {
         first();
       }
     };
-  
+    
     const strm = fs.createWriteStream(logFile);
     k.stdout.pipe(strm);
     k.stderr.pipe(strm);
@@ -153,11 +154,11 @@ let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
   }
 };
 
-let matchesTSFile = function (p: string): boolean {
+const matchesTSFile = function (p: string): boolean {
   return String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/);
 };
 
-export default  (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
+export default (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
   
   const root = opts.root;
   
@@ -176,7 +177,6 @@ export default  (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
   catch (err) {
   
   }
-  
   
   const cps: Array<IMultiWatchChildProcess> = [];
   
@@ -257,7 +257,6 @@ export default  (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
           log.warn('it appears that no current watch process was watching the directory that the file was added to.');
           log.warn('no new watch process will be spawned nor will any watch process be re-started.');
         }
-        
       }
       
     });
@@ -265,7 +264,7 @@ export default  (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
   
   const $tsconfigPaths: Array<string> = [];
   
-  searchDir(root, $tsconfigPaths,  (err: Error, tsconfigPaths: Array<string>) => {
+  searchDir(root, $tsconfigPaths, (err: Error, tsconfigPaths: Array<string>) => {
     
     if (err) {
       throw err;
@@ -293,7 +292,7 @@ export default  (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
         log.good('[' + (index + 1) + ']', p);
       });
       
-      cb && cb(null);
+      cb && cb(null, tsconfigPaths);
       
     });
     

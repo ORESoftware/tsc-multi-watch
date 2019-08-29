@@ -4,21 +4,19 @@
     "skipLibCheck": true,
     "declaration": true,
     "baseUrl": ".",
-    "paths": {
-    },
+    "rootDir": "src",
     "allowJs": false,
-    "target": "es6",
+    "target": "es2018",
     "module": "commonjs",
     "noImplicitAny": true,
     "removeComments": true,
     "allowUnreachableCode": true,
     "lib": [
-      "es2015",
-      "es2016",
-      "es2017"
+      "es2017",
+      "es2018"
     ]
   },
-  "allowJs": true,
+  "allowJs": false,
   "compileOnSave": false,
   "include": [
     "src"
