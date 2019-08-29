@@ -1,5 +1,6 @@
-import * as chalk from "chalk";
+'use strict';
 
+import chalk from 'chalk';
 
 export const log = {
   info: console.log.bind(console, 'tsc-multi-watch:'),

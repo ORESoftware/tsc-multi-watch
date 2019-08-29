@@ -5,13 +5,12 @@ import {Stats} from "fs";
 import * as util from "util";
 import * as cp from 'child_process';
 import log from './logging';
-
-const fs = require('fs');
-const async = require('async');
-const path = require('path');
+import fs = require('fs');
+import async = require('async');
+import path = require('path');
 import * as chokidar from 'chokidar';
 import {ChildProcess} from "child_process";
-import * as chalk from 'chalk';
+import chalk from 'chalk';
 import Timer = NodeJS.Timer;
 import {OptionsToType} from "@oresoftware/cli";
 import CliOptions from "./cli-options";
@@ -37,7 +36,7 @@ interface IMultiWatchChildProcess extends ChildProcess {
 }
 
 
-const searchDir =  (dir: string, tsConfigPaths: Array<string>, cb: EVCb<Array<string>>) =>{
+const searchDir = (dir: string, tsConfigPaths: Array<string>, cb: EVCb<Array<string>>) => {
   
   if (isMatch(dir)) {
     // we ignore paths that match any of the regexes in the list
@@ -45,13 +44,13 @@ const searchDir =  (dir: string, tsConfigPaths: Array<string>, cb: EVCb<Array<st
     return process.nextTick(cb);
   }
   
-  fs.readdir(dir,  (err: Error, items: Array<string>) => {
+  fs.readdir(dir, (err: Error, items: Array<string>) => {
     
     if (err) {
       return cb(err);
     }
     
-    async.eachLimit(items, 6,  (item: string, cb: EVCb<any>) => {
+    async.eachLimit(items, 6, (item: string, cb: EVCb<any>) => {
       
       const fullPath = path.resolve(dir, item);
       
@@ -95,16 +94,16 @@ const searchDir =  (dir: string, tsConfigPaths: Array<string>, cb: EVCb<Array<st
 
 let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
   
-  return  (p: string, cb: EVCb<any>) => {
+  return (p: string, cb: EVCb<any>) => {
     
-    const logFile = path.resolve(root + '/.tscmultiwatch/' + String(p)
-      .slice(root.length).replace(/\//g, '#') + '.log');
+    const logFile = path.resolve(root + '/.tscmultiwatch/logs/' + String(p)
+      .slice(root.length).replace(/\//g, '•') + '.log');
     
     let callable = true;
     
-    const first = function () {
+    const first = function (...args: any[]) {
       if (callable) {
-        log.good(`tsc watch process now watching ${chalk.magenta(p)}`);
+        log.good(`tsc watch process now watching ${chalk.blueBright(p)}`);
         clearTimeout(to);
         k.stderr.removeListener('data', onStdio);
         k.stdout.removeListener('data', onStdio);
@@ -129,11 +128,17 @@ let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
     k.tsConfigPath = p;
     cps.push(k);
     
-    const cmd = `cd '${dirname}' && tsc -w`;
+    const cmd = ` cd '${dirname}' && tsc --pretty false --preserveWatchOutput --watch `;
     k.stdin.end(`${cmd}`);
     k.once('error', first);
     k.stderr.setEncoding('utf8');
     k.stdout.setEncoding('utf8');
+    
+    k.once('exit', code => {
+      if (code > 0) {
+        first(new Error('Could not run this command: ' + cmd));
+      }
+    });
     
     let count = 0;
     
@@ -144,6 +149,9 @@ let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
     };
     
     const strm = fs.createWriteStream(logFile);
+    strm.write('In the beginning: ');
+    strm.write(new Date().toUTCString());
+    strm.write('\n');
     k.stdout.pipe(strm);
     k.stderr.pipe(strm);
     k.stdout.on('data', onStdio);
