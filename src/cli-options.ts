@@ -2,9 +2,10 @@
 
 import {asOptions, Type} from '@oresoftware/cli';
 import * as path from 'path';
+import {OptionsToType} from "@oresoftware/cli";
 
 
-export default asOptions([
+export const options = asOptions([
   
   {
     name: 'help',
@@ -25,5 +26,9 @@ export default asOptions([
     help: 'Root to search from',
     default: process.cwd()
   }
-  
+
 ]);
+
+export default options;
+
+export type Opts = OptionsToType<typeof options>

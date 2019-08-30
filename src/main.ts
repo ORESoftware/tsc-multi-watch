@@ -14,6 +14,8 @@ import chalk from 'chalk';
 import Timer = NodeJS.Timer;
 import {OptionsToType} from "@oresoftware/cli";
 import CliOptions from "./cli-options";
+import pt from "prepend-transform";
+import {Opts} from "./cli-options";
 
 export type EVCb<T, E = any> = (err: E, val?: T) => void;
 
@@ -31,73 +33,91 @@ let isMatch = function (pth: string): boolean {
 
 interface IMultiWatchChildProcess extends ChildProcess {
   tsConfigPath: string;
+  tsConfig: any,
   fnCalledWhenExitting: Function,
   tscMultiWatchTO?: Timer
 }
 
 
-const searchDir = (dir: string, tsConfigPaths: Array<string>, cb: EVCb<Array<string>>) => {
+const runSearch = (dir: string, cb: EVCb<Array<string>>) => {
   
-  if (isMatch(dir)) {
-    // we ignore paths that match any of the regexes in the list
-    log.warn('dir was ignored => ', dir);
-    return process.nextTick(cb);
-  }
+  const tsConfigPaths: Array<string> = [];
   
-  fs.readdir(dir, (err: Error, items: Array<string>) => {
+  const searchDir = (dir: string, cb: EVCb<any>) => {
     
-    if (err) {
-      return cb(err);
+    if (isMatch(dir)) {
+      // we ignore paths that match any of the regexes in the list
+      log.warn('dir was ignored:', dir);
+      return process.nextTick(cb);
     }
     
-    async.eachLimit(items, 6, (item: string, cb: EVCb<any>) => {
+    fs.readdir(dir, (err: Error, items: Array<string>) => {
       
-      const fullPath = path.resolve(dir, item);
-      
-      if (isMatch(dir)) {
-        // we ignore paths that match any of the regexes in the list
-        log.warn('dir was ignored => ', dir);
-        return process.nextTick(cb);
+      if (err) {
+        return cb(err);
       }
       
-      fs.stat(fullPath, function (err: Error, stats: Stats) {
+      async.eachLimit(items, 6, (item: string, cb: EVCb<any>) => {
         
-        if (err) {
-          console.error(err);
-          return cb(null);
+        const fullPath = path.resolve(dir, item);
+        
+        if (isMatch(dir)) {
+          // we ignore paths that match any of the regexes in the list
+          log.warn('dir was ignored => ', dir);
+          return process.nextTick(cb);
         }
         
-        if (stats.isDirectory()) {
-          return searchDir(fullPath, tsConfigPaths, cb);
-        }
-        
-        if (stats.isFile()) {
-          if (String(item).match(/^tsconfig.*\.json$/)) {
-            tsConfigPaths.push(fullPath);
+        fs.stat(fullPath, function (err: Error, stats: Stats) {
+          
+          if (err) {
+            console.error(err);
+            return cb(null);
           }
-        }
-        else {
-          log.warn('the following item is neither a file nor directory (a symlink?) => ', fullPath);
-        }
+          
+          if (stats.isDirectory()) {
+            return searchDir(fullPath, cb);
+          }
+          
+          if (stats.isFile()) {
+            if (String(item).match(/^tsconfig.*\.json$/)) {
+              tsConfigPaths.push(fullPath);
+            }
+          }
+          else {
+            log.warn('the following item is neither a file nor directory (a symlink?) => ', fullPath);
+          }
+          
+          cb(null);
+          
+        });
         
-        cb(null);
-        
-      });
+      }, cb);
       
-    }, (err: any) => {
-      cb(err, tsConfigPaths)
     });
     
+  };
+  
+  searchDir(dir, (err: any) => {
+    cb(err, tsConfigPaths)
   });
   
 };
 
-let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
-  
+const startCP =  (root: string, cps: Set<IMultiWatchChildProcess>) => {
   return (p: string, cb: EVCb<any>) => {
     
     const logFile = path.resolve(root + '/.tscmultiwatch/logs/' + String(p)
       .slice(root.length).replace(/\//g, '•') + '.log');
+    
+    let tsConfig = null;
+    try {
+      tsConfig = require(p);
+    }
+    catch (err) {
+      log.error(err);
+      log.error('Could not load JSON for tsconfig.json file located here:', p);
+      return process.nextTick(cb);
+    }
     
     let callable = true;
     
@@ -113,26 +133,32 @@ let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
     };
     
     const to = setTimeout(first, 4000);
-    const dirname = path.dirname(p);
+    const tsconfDir = path.dirname(p);
     
     const k = <IMultiWatchChildProcess>cp.spawn('bash', [], {
       detached: false
     });
     
-    k.once('exit', function () {
+    k.once('exit', code => {
       clearTimeout(k.tscMultiWatchTO);
-      console.log('child process exitted.');
+      log.error('child process exitted.');
       k.fnCalledWhenExitting && k.fnCalledWhenExitting();
     });
     
+    k.tsConfig = tsConfig;
     k.tsConfigPath = p;
-    cps.push(k);
     
-    const cmd = ` cd '${dirname}' && tsc --pretty false --preserveWatchOutput --watch `;
+    const bn = path.basename(p);
+    cps.add(k);
+    
+    const cmd = ` cd '${tsconfDir}' && tsc --project '${bn}' --pretty false --preserveWatchOutput --watch `;
     k.stdin.end(`${cmd}`);
     k.once('error', first);
     k.stderr.setEncoding('utf8');
     k.stdout.setEncoding('utf8');
+    
+    k.stdout.pipe(pt(chalk.cyan(p + ': '))).pipe(process.stdout);
+    k.stderr.pipe(pt(chalk.magenta(p + ': '))).pipe(process.stderr);
     
     k.once('exit', code => {
       if (code > 0) {
@@ -160,14 +186,13 @@ let startCP = function (root: string, cps: Array<IMultiWatchChildProcess>) {
   }
 };
 
-const matchesTSFile = function (p: string): boolean {
+const matchesTSFile =  (p: string): boolean => {
   return String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/);
 };
 
-export default (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
+export default (opts: Opts, cb: EVCb<any>) => {
   
   const root = opts.root;
-  
   const logsDir = path.resolve(root + '/.tscmultiwatch');
   
   try {
@@ -184,7 +209,8 @@ export default (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
   
   }
   
-  const cps: Array<IMultiWatchChildProcess> = [];
+  const cps = new Set<IMultiWatchChildProcess>();
+  const startCps = startCP(root, cps);
   
   const watcher = chokidar.watch(root, {
     ignoreInitial: true,
@@ -197,14 +223,80 @@ export default (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
   });
   
   let ready = false;
-  
+  const changedFiles = new Set<string>();
   log.good('created chokidar watcher.');
   
-  watcher.once('ready', function (v: any) {
+  const runAdd = () => {
+    
+    const cfarray = Array.from(changedFiles);
+    changedFiles.clear();
+    
+    const cpset = new Set<IMultiWatchChildProcess>();
+    
+    for (const cp of cps) {
+      
+      const dir = path.dirname(cp.tsConfigPath);
+      
+      for (const cf of cfarray) {
+        if (String(cf).startsWith(dir)) {
+          cpset.add(cp);
+          break;
+        }
+      }
+      
+    }
+    
+    if (cpset.size < 1) {
+      log.warn('it appears that no current watch process was watching the directory that the file was added to.');
+      log.warn('no new watch process will be spawned nor will any watch process be re-started.');
+      return;
+    }
+    
+    log.good('We will re-start the appropriate watch process given these file changes...');
+    
+    for (const cpToKill of cpset) {
+      
+      cps.delete(cpToKill);
+  
+      cpToKill.removeAllListeners('exit');
+      cpToKill.once('exit', code => {
+        log.info('child process exitted.');
+        cpToKill.fnCalledWhenExitting && cpToKill.fnCalledWhenExitting();
+      });
+      
+      const rewatchPath = cpToKill.tsConfigPath;
+      
+      startCps(rewatchPath, (err) => {
+        
+        if (err) {
+          log.error(err);
+          return;
+        }
+        
+        log.veryGood('A new watcher process was started at path =>', rewatchPath);
+      });
+      
+      cpToKill.kill('SIGINT');
+      cpToKill.tscMultiWatchTO = setTimeout(() => {
+        cpToKill.kill('SIGKILL');
+      }, 2000);
+      
+    }
+    
+  };
+  
+  
+  let to: Timer = null;
+  
+  watcher.once('ready', () => {
     
     log.veryGood('chokidar watcher is now ready.');
     
-    watcher.on('add', function (p: string) {
+    watcher.on('change', (p, stats) => {
+      // if the file is tsconfig.json, then we restart process also
+    });
+    
+    watcher.on('add', (p, stats) => {
       
       if (!ready) {
         if (matchesTSFile(p)) {
@@ -215,62 +307,18 @@ export default (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
       }
       
       if (matchesTSFile(p)) {
-        
-        log.info('A typescript file was added at path =>', chalk.blue(p));
-        
-        let cpToKill: IMultiWatchChildProcess, matchAmount = 0;
-        
-        for (let i = 0; i < cps.length; i++) {
-          
-          let cp = cps[i], tsConfigPath = cp.tsConfigPath,
-            dir = path.dirname(tsConfigPath),
-            ln = dir.length;
-          
-          if (String(p).match(dir) && ln > matchAmount) {
-            cpToKill = cp;
-            matchAmount = ln;
-          }
-        }
-        
-        if (cpToKill) {
-          
-          // remove cp from array
-          let index = cps.indexOf(cpToKill);
-          cps.splice(index, 1);
-          
-          log.good('We will re-start the appropriate watch process given this file change...');
-          
-          let rewatchPath = cpToKill.tsConfigPath;
-          
-          console.log('child process has exitted.');
-          startCP(root, cps)(rewatchPath, function (err: Error) {
-            
-            if (err) {
-              log.error(err.stack || err);
-            }
-            else {
-              log.veryGood('A new watcher process was started at path =>', rewatchPath);
-            }
-          });
-          
-          cpToKill.kill('SIGINT');
-          cpToKill.tscMultiWatchTO = setTimeout(() => {
-            cpToKill.kill('SIGKILL');
-          }, 5000);
-          
-        }
-        else {
-          log.warn('it appears that no current watch process was watching the directory that the file was added to.');
-          log.warn('no new watch process will be spawned nor will any watch process be re-started.');
-        }
+        log.info('A typescript file was added at path =>', chalk.blueBright(p));
+        changedFiles.add(p);
+        clearTimeout(to);
+        to = setTimeout(runAdd, 500);
       }
       
     });
+    
   });
   
-  const $tsconfigPaths: Array<string> = [];
   
-  searchDir(root, $tsconfigPaths, (err: Error, tsconfigPaths: Array<string>) => {
+  runSearch(root, (err: Error, tsconfigPaths: Array<string>) => {
     
     if (err) {
       throw err;
@@ -280,24 +328,16 @@ export default (opts: OptionsToType<typeof CliOptions>, cb: EVCb<any>) => {
       log.error('No tsconfig.json files could be found in your project.');
       return process.exit(1);
     }
-    else {
-      log.good(`tsc-multi-watch will attempt to start ${tsconfigPaths.length} watching processes.`);
-    }
     
-    async.eachLimit(tsconfigPaths, 3, startCP(root, cps), function (err: Error) {
+    log.good(`tsc-multi-watch will attempt to start ${tsconfigPaths.length} watching processes.`);
+    
+    async.eachLimit(tsconfigPaths, 3, startCps, err => {
       
       if (err) {
         throw err;
       }
       
       ready = true;
-      
-      log.veryGood('tsc-multi-watch is running watchers against the following tsconfig.json files:');
-      
-      tsconfigPaths.forEach(function (p, index) {
-        log.good('[' + (index + 1) + ']', p);
-      });
-      
       cb && cb(null, tsconfigPaths);
       
     });
