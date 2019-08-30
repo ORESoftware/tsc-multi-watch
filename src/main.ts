@@ -15,7 +15,7 @@ import Timer = NodeJS.Timer;
 import {OptionsToType} from "@oresoftware/cli";
 import CliOptions from "./cli-options";
 import pt from "prepend-transform";
-import {Opts} from "./cli-options";
+import {CliOpts} from "./cli-options";
 
 export type EVCb<T, E = any> = (err: E, val?: T) => void;
 
@@ -190,7 +190,7 @@ const matchesTSFile =  (p: string): boolean => {
   return String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/);
 };
 
-export default (opts: Opts, cb: EVCb<any>) => {
+export default (opts: CliOpts, cb: EVCb<any>) => {
   
   const root = opts.root;
   const logsDir = path.resolve(root + '/.tscmultiwatch');

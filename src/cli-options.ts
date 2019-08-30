@@ -29,4 +29,4 @@ export const options = asOptions([
 
 export default options;
 
-export type Opts = OptionsToType<typeof options>
+export type CliOpts = OptionsToType<typeof options>
