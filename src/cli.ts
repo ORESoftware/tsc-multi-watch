@@ -5,11 +5,12 @@ import parser from './cli-parser';
 
 const v = parser.parse(process.argv);
 
-if (v.opts.help || Object.keys(v.opts).length < 1) {
+if (v.opts.help) {
+  console.log();
   console.log(parser.getHelpString());
+  console.log();
   process.exit(0);
 }
-
 
 runTMW(v.opts, (err, results) => {
   

@@ -199,14 +199,14 @@ export default (opts: Opts, cb: EVCb<any>) => {
     fs.mkdirSync(logsDir);
   }
   catch (err) {
-  
+    // ignore
   }
   
   try {
     fs.mkdirSync(path.resolve(logsDir + '/logs'));
   }
   catch (err) {
-  
+    // ignore
   }
   
   const cps = new Set<IMultiWatchChildProcess>();
@@ -260,7 +260,7 @@ export default (opts: Opts, cb: EVCb<any>) => {
   
       cpToKill.removeAllListeners('exit');
       cpToKill.once('exit', code => {
-        log.info('child process exitted.');
+        log.info('child process exitted with code:', code);
         cpToKill.fnCalledWhenExitting && cpToKill.fnCalledWhenExitting();
       });
       

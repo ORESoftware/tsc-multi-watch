@@ -1,16 +1,14 @@
 'use strict';
 
-import {asOptions, Type} from '@oresoftware/cli';
+import {asOptions, Type, OptionsToType} from '@oresoftware/cli';
 import * as path from 'path';
-import {OptionsToType} from "@oresoftware/cli";
-
 
 export const options = asOptions([
   
   {
     name: 'help',
     type: Type.Boolean,
-    help: `Get help with the 'ntrs ${path.basename(__dirname)}' command`
+    help: `Get help.`
   },
   
   {
