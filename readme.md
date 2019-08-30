@@ -3,8 +3,8 @@
 Spawns a watch process for each tsconfig.json file in the search root.
 The process is:
 
-```typescript
- const cmd = ` cd '${tsconfDir}' && tsc --project '${p}' --pretty false --preserveWatchOutput --watch `;
+```bash
+cd '${tsconfDir}' && tsc --project '${p}' --pretty false --preserveWatchOutput --watch
 ```
 
 ## Installation
