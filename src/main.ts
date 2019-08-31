@@ -176,7 +176,6 @@ const startCP = (root: string, cps: Set<IMultiWatchChildProcess>) => {
       count: 0
     };
     
-    
     const onStdio = (d: string) => {
       
       con.stdout += String(d || '').trim();
