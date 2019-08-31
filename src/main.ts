@@ -25,6 +25,11 @@ const ignored: Array<RegExp> = [
   /\/bower_components/
 ];
 
+const replaceSlashColor = (p: string, color?: string): string => {
+  color = color || 'magenta';
+  return String(p).replace(/\//g, (chalk as any)[color].bold('/'));
+};
+
 let isMatch = function (pth: string): boolean {
   return ignored.some(function (ign) {
     return !!String(pth).match(ign);
@@ -103,7 +108,7 @@ const runSearch = (dir: string, cb: EVCb<Array<string>>) => {
   
 };
 
-const startCP =  (root: string, cps: Set<IMultiWatchChildProcess>) => {
+const startCP = (root: string, cps: Set<IMultiWatchChildProcess>) => {
   return (p: string, cb: EVCb<any>) => {
     
     const logFile = path.resolve(root + '/.tscmultiwatch/logs/' + String(p)
@@ -123,7 +128,7 @@ const startCP =  (root: string, cps: Set<IMultiWatchChildProcess>) => {
     
     const first = function (...args: any[]) {
       if (callable) {
-        log.good(`tsc watch process now watching ${chalk.blueBright(p)}`);
+        log.good(`tsc watch process now watching ${chalk.blueBright(replaceSlashColor(p, 'blue'))}`);
         clearTimeout(to);
         k.stderr.removeListener('data', onStdio);
         k.stdout.removeListener('data', onStdio);
@@ -157,8 +162,8 @@ const startCP =  (root: string, cps: Set<IMultiWatchChildProcess>) => {
     k.stderr.setEncoding('utf8');
     k.stdout.setEncoding('utf8');
     
-    k.stdout.pipe(pt(chalk.cyan(p + ': '))).pipe(process.stdout);
-    k.stderr.pipe(pt(chalk.magenta(p + ': '))).pipe(process.stderr);
+    k.stdout.pipe(pt(chalk.blueBright(replaceSlashColor(p + ': ', 'gray')))).pipe(process.stdout);
+    k.stderr.pipe(pt(chalk.magenta(replaceSlashColor(p + ': ', 'gray')))).pipe(process.stderr);
     
     k.once('exit', code => {
       if (code > 0) {
@@ -166,15 +171,34 @@ const startCP =  (root: string, cps: Set<IMultiWatchChildProcess>) => {
       }
     });
     
-    let count = 0;
     
-    const onStdio = function () {
-      if (count++ > 15) {
-        first();
-      }
+    const con = {
+      stdout: '',
+      count: 0
     };
     
-    const strm = fs.createWriteStream(logFile);
+    
+    const onStdio = (d: string) => {
+      
+      con.stdout += String(d || '').trim();
+      
+      if (/Found 0 errors/ig.test(con.stdout)) {
+        first();
+        return;
+      }
+      
+      if (/Watching for file changes/ig.test(con.stdout)) {
+        first();
+        return;
+      }
+      
+      if (con.count++ > 15) {
+        first();
+      }
+      
+    };
+    
+    const strm = fs.createWriteStream(logFile, {encoding: 'utf8'});
     strm.write('In the beginning: ');
     strm.write(new Date().toUTCString());
     strm.write('\n');
@@ -186,7 +210,7 @@ const startCP =  (root: string, cps: Set<IMultiWatchChildProcess>) => {
   }
 };
 
-const matchesTSFile =  (p: string): boolean => {
+const matchesTSFile = (p: string): boolean => {
   return String(p).match(/\.ts$/) && !String(p).match(/\.d\.ts$/);
 };
 
@@ -257,7 +281,7 @@ export default (opts: CliOpts, cb: EVCb<any>) => {
     for (const cpToKill of cpset) {
       
       cps.delete(cpToKill);
-  
+      
       cpToKill.removeAllListeners('exit');
       cpToKill.once('exit', code => {
         log.info('child process exitted with code:', code);
@@ -307,7 +331,7 @@ export default (opts: CliOpts, cb: EVCb<any>) => {
       }
       
       if (matchesTSFile(p)) {
-        log.info('A typescript file was added at path =>', chalk.blueBright(p));
+        log.info('A typescript file was added at path =>', chalk.blueBright(replaceSlashColor(p, 'blue')));
         changedFiles.add(p);
         clearTimeout(to);
         to = setTimeout(runAdd, 500);
