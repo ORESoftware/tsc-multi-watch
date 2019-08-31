@@ -126,14 +126,14 @@ const startCP = (root: string, cps: Set<IMultiWatchChildProcess>) => {
     
     let callable = true;
     
-    const first = function (...args: any[]) {
+    const first = (...args: any[]) => {
       if (callable) {
+        callable = false;
         log.good(`tsc watch process now watching ${chalk.blueBright(replaceSlashColor(p, 'blue'))}`);
         clearTimeout(to);
         k.stderr.removeListener('data', onStdio);
         k.stdout.removeListener('data', onStdio);
-        callable = false;
-        cb.apply(null, arguments);
+        cb.apply(null, ...args);
       }
     };
     
@@ -170,7 +170,6 @@ const startCP = (root: string, cps: Set<IMultiWatchChildProcess>) => {
         first(new Error('Could not run this command: ' + cmd));
       }
     });
-    
     
     const con = {
       stdout: '',
