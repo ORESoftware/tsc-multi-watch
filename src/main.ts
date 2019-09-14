@@ -30,7 +30,7 @@ const replaceSlashColor = (p: string, color?: string): string => {
   return String(p).replace(/\//g, (chalk as any)[color].bold('/'));
 };
 
-let isMatch = function (pth: string): boolean {
+const isMatch = function (pth: string): boolean {
   return ignored.some(function (ign) {
     return !!String(pth).match(ign);
   });
@@ -42,7 +42,6 @@ interface IMultiWatchChildProcess extends ChildProcess {
   fnCalledWhenExitting: Function,
   tscMultiWatchTO?: Timer
 }
-
 
 const runSearch = (dir: string, cb: EVCb<Array<string>>) => {
   
@@ -72,7 +71,7 @@ const runSearch = (dir: string, cb: EVCb<Array<string>>) => {
           return process.nextTick(cb);
         }
         
-        fs.stat(fullPath, function (err: Error, stats: Stats) {
+        fs.stat(fullPath, (err, stats) => {
           
           if (err) {
             console.error(err);
@@ -83,13 +82,13 @@ const runSearch = (dir: string, cb: EVCb<Array<string>>) => {
             return searchDir(fullPath, cb);
           }
           
-          if (stats.isFile()) {
-            if (String(item).match(/^tsconfig.*\.json$/)) {
-              tsConfigPaths.push(fullPath);
-            }
-          }
-          else {
+          if (!stats.isFile()) {
             log.warn('the following item is neither a file nor directory (a symlink?) => ', fullPath);
+            return cb(null);
+          }
+          
+          if (String(item).match(/^tsconfig.*\.json$/)) {
+            tsConfigPaths.push(fullPath);
           }
           
           cb(null);
@@ -307,7 +306,6 @@ export default (opts: CliOpts, cb: EVCb<any>) => {
     
   };
   
-  
   let to: Timer = null;
   
   watcher.once('ready', () => {
@@ -338,7 +336,6 @@ export default (opts: CliOpts, cb: EVCb<any>) => {
     });
     
   });
-  
   
   runSearch(root, (err: Error, tsconfigPaths: Array<string>) => {
     
