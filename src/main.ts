@@ -22,7 +22,9 @@ export type EVCb<T, E = any> = (err: E, val?: T) => void;
 const ignored: Array<RegExp> = [
   /\/node_modules/,
   /\/.git/,
-  /\/bower_components/
+  /\/bower_components/,
+  /\/test\//,
+  /\/sumanjs\//
 ];
 
 const replaceSlashColor = (p: string, color?: string): string => {
@@ -50,6 +52,12 @@ const runSearch = (dir: string, cb: EVCb<Array<string>>) => {
   const searchDir = (dir: string, cb: EVCb<any>) => {
     
     if (isMatch(dir)) {
+      // we ignore paths that match any of the regexes in the list
+      log.warn('dir was ignored:', dir);
+      return process.nextTick(cb);
+    }
+    
+    if (isMatch(dir + '/')) {
       // we ignore paths that match any of the regexes in the list
       log.warn('dir was ignored:', dir);
       return process.nextTick(cb);
@@ -111,7 +119,7 @@ const startCP = (root: string, cps: Set<IMultiWatchChildProcess>) => {
   return (p: string, cb: EVCb<any>) => {
     
     const logFile = path.resolve(root + '/.tscmultiwatch/logs/' + String(p)
-      .slice(root.length).replace(/\//g, '•') + '.log');
+    .slice(root.length).replace(/\//g, '•') + '.log');
     
     let tsConfig = null;
     try {
@@ -215,6 +223,12 @@ export default (opts: CliOpts, cb: EVCb<any>) => {
   
   const root = opts.root;
   const logsDir = path.resolve(root + '/.tscmultiwatch');
+  
+  if (opts.ignore && opts.ignore.length) {
+    for (const i of opts.ignore) {
+      ignored.push(new RegExp('i', 'ig'));
+    }
+  }
   
   try {
     fs.mkdirSync(logsDir);
@@ -344,7 +358,7 @@ export default (opts: CliOpts, cb: EVCb<any>) => {
     }
     
     if (tsconfigPaths.length < 1) {
-      log.error('No tsconfig.json files could be found in your project.');
+      log.error('No tsconfig.json files could be found within your project root:', root);
       return process.exit(1);
     }
     

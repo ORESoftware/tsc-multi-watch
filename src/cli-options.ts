@@ -18,6 +18,13 @@ export const options = asOptions([
   },
   
   {
+    name: 'ignore',
+    short: 'i',
+    type: Type.ArrayOfString,
+    help: 'regexes of paths to be ignored.',
+  },
+  
+  {
     name: 'root',
     short: 'r',
     type: Type.String,
